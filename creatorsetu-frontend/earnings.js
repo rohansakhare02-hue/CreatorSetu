@@ -1,4 +1,3 @@
-
 async function saveEarningToBackend(platform, amount, date) {
     try {
         const response = await apiFetch("/api/earnings", {
@@ -18,16 +17,21 @@ async function saveEarningToBackend(platform, amount, date) {
         if (!response.ok || !data.success) {
             throw new Error(data.error || "Failed to save earning");
         }
-		return data;
-	} catch (error) {
-		console.error("Backend save failed:", error);
-		alert("Could not save earning to backend. Make sure backend is running.");
-		return null;
-	}
+
+        return data;
+
+    } catch (error) {
+        console.error("Backend save failed:", error);
+        alert("Could not save earning to backend.");
+        return null;
+    }
 }
+
+
 async function loadEarningsFromBackend() {
     try {
         const response = await apiFetch("/api/earnings");
+
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -41,10 +45,11 @@ async function loadEarningsFromBackend() {
             date: item.date
                 ? new Date(item.date).toISOString().slice(0, 10)
                 : new Date().toISOString().slice(0, 10),
-            category: "Other"
+            category: item.category || "Other"
         }));
 
         render();
+
     } catch (error) {
         console.error("Failed to load earnings:", error);
     }
@@ -64,257 +69,525 @@ async function deleteEarningFromBackend(id) {
         }
 
         return true;
+
     } catch (error) {
-        console.error(error);
+        console.error("Delete earning failed:", error);
         alert("Failed to delete earning.");
         return false;
     }
 }
 
 
-async function deleteEarningFromBackend(id) {
-	try {
-		const response = await fetch(`${API_BASE_URL}/earnings/${id}`, {
-			method: "DELETE"
-		});
+// ===============================
+// DOM ELEMENTS
+// ===============================
 
-		const data = await response.json();
+const earningForm = document.querySelector("[data-earning-form]");
+const earningsGrid = document.querySelector("[data-earnings-grid]");
+const emptyState = document.querySelector("[data-empty-state]");
 
-		if (!response.ok || !data.success) {
-			throw new Error(data.error || "Delete failed");
-		}
+const pieChart = document.querySelector("[data-pie-chart]");
+const pieLegend = document.querySelector("[data-pie-legend]");
 
-		return true;
+const totalEarningsEl = document.querySelector("[data-total-earnings]");
+const totalCountEl = document.querySelector("[data-total-count]");
 
-	} catch (error) {
-		console.error(error);
-		alert("Failed to delete earning.");
-		return false;
-	}
-}
+const topPlatformEl = document.querySelector("[data-top-platform]");
+const topPlatformAmountEl = document.querySelector("[data-top-platform-amount]");
 
-const earningForm = document.querySelector('[data-earning-form]');
-const earningsGrid = document.querySelector('[data-earnings-grid]');
-const emptyState = document.querySelector('[data-empty-state]');
-const pieChart = document.querySelector('[data-pie-chart]');
-const pieLegend = document.querySelector('[data-pie-legend]');
-const totalEarningsEl = document.querySelector('[data-total-earnings]');
-const totalCountEl = document.querySelector('[data-total-count]');
-const topPlatformEl = document.querySelector('[data-top-platform]');
-const topPlatformAmountEl = document.querySelector('[data-top-platform-amount]');
-const latestAmountEl = document.querySelector('[data-latest-amount]');
-const latestMetaEl = document.querySelector('[data-latest-meta]');
+const latestAmountEl = document.querySelector("[data-latest-amount]");
+const latestMetaEl = document.querySelector("[data-latest-meta]");
 
 
+// ===============================
+// CONSTANTS
+// ===============================
 
 const PIE_COLORS = [
-	'#7c9e8a',
-	'#d4a5a5',
-	'#b9c6a8',
-	'#c9a9c4',
-	'#8fb3a6',
-	'#e0b894',
-	'#9aa8c9'
+    "#7c9e8a",
+    "#d4a5a5",
+    "#b9c6a8",
+    "#c9a9c4",
+    "#8fb3a6",
+    "#e0b894",
+    "#9aa8c9"
 ];
 
-const rupeeFormatter = new Intl.NumberFormat('en-IN', {
-	style: 'currency',
-	currency: 'INR',
-	maximumFractionDigits: 0
+const rupeeFormatter = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
 });
 
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-	day: 'numeric',
-	month: 'short',
-	year: 'numeric'
+const dateFormatter = new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
 });
 
 
 let earnings = [];
 
+
+// ===============================
+// DATE FUNCTIONS
+// ===============================
+
 function formatDate(value) {
-	const parsed = new Date(`${value}T00:00:00`);
-	if (Number.isNaN(parsed.getTime())) {
-		return value;
-	}
-	return dateFormatter.format(parsed);
+    const parsed = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+
+    return dateFormatter.format(parsed);
 }
+
 
 function sortedByDate(list) {
-	return [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+    return [...list].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+    );
 }
+
+
+// ===============================
+// SUMMARY
+// ===============================
 
 function renderSummary(sorted) {
-	const total = earnings.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-	totalEarningsEl.textContent = rupeeFormatter.format(total);
-	totalCountEl.textContent = earnings.length === 0
-		? 'No earnings logged yet'
-		: `Across ${earnings.length} ${earnings.length === 1 ? 'entry' : 'entries'}`;
 
-	const byPlatform = {};
-	earnings.forEach((item) => {
-		byPlatform[item.platform] = (byPlatform[item.platform] || 0) + Number(item.amount || 0);
-	});
-	const topEntry = Object.entries(byPlatform).sort((a, b) => b[1] - a[1])[0];
-	if (topEntry) {
-		topPlatformEl.textContent = topEntry[0];
-		topPlatformAmountEl.textContent = `${rupeeFormatter.format(topEntry[1])} earned`;
-	} else {
-		topPlatformEl.textContent = '—';
-		topPlatformAmountEl.textContent = 'Add an entry to see your leader';
-	}
+    const total = earnings.reduce(
+        (sum, item) => sum + Number(item.amount || 0),
+        0
+    );
 
-	const latest = sorted[0];
-	if (latest) {
-		latestAmountEl.textContent = rupeeFormatter.format(Number(latest.amount || 0));
-		latestMetaEl.textContent = `${latest.platform} • ${formatDate(latest.date)}`;
-	} else {
-		latestAmountEl.textContent = '—';
-		latestMetaEl.textContent = 'Your most recent payout shows here';
-	}
+    totalEarningsEl.textContent = rupeeFormatter.format(total);
+
+
+    totalCountEl.textContent =
+        earnings.length === 0
+            ? "No earnings logged yet"
+            : `Across ${earnings.length} ${
+                earnings.length === 1 ? "entry" : "entries"
+            }`;
+
+
+    const byPlatform = {};
+
+    earnings.forEach(item => {
+
+        byPlatform[item.platform] =
+            (byPlatform[item.platform] || 0) +
+            Number(item.amount || 0);
+
+    });
+
+
+    const topEntry = Object.entries(byPlatform)
+        .sort((a, b) => b[1] - a[1])[0];
+
+
+    if (topEntry) {
+
+        topPlatformEl.textContent = topEntry[0];
+
+        topPlatformAmountEl.textContent =
+            `${rupeeFormatter.format(topEntry[1])} earned`;
+
+    } else {
+
+        topPlatformEl.textContent = "—";
+
+        topPlatformAmountEl.textContent =
+            "Add an entry to see your leader";
+    }
+
+
+    const latest = sorted[0];
+
+
+    if (latest) {
+
+        latestAmountEl.textContent =
+            rupeeFormatter.format(Number(latest.amount || 0));
+
+        latestMetaEl.textContent =
+            `${latest.platform} • ${formatDate(latest.date)}`;
+
+    } else {
+
+        latestAmountEl.textContent = "—";
+
+        latestMetaEl.textContent =
+            "Your most recent payout shows here";
+    }
 }
+
+
+// ===============================
+// PIE CHART
+// ===============================
 
 function renderPie() {
-	const byPlatform = {};
-	earnings.forEach((item) => {
-		byPlatform[item.platform] = (byPlatform[item.platform] || 0) + Number(item.amount || 0);
-	});
 
-	const entries = Object.entries(byPlatform).sort((a, b) => b[1] - a[1]);
-	const total = entries.reduce((sum, entry) => sum + entry[1], 0);
+    const byPlatform = {};
 
-	if (total === 0) {
-		pieChart.style.background = 'conic-gradient(rgba(124, 158, 138, 0.15) 0 100%)';
-		pieChart.dataset.empty = 'true';
-		pieLegend.innerHTML = '<li class="pie-legend__empty">No data to chart yet.</li>';
-		return;
-	}
 
-	pieChart.dataset.empty = 'false';
+    earnings.forEach(item => {
 
-	let cursor = 0;
-	const segments = [];
-	const legendItems = [];
+        byPlatform[item.platform] =
+            (byPlatform[item.platform] || 0) +
+            Number(item.amount || 0);
 
-	entries.forEach(([platform, amount], index) => {
-		const color = PIE_COLORS[index % PIE_COLORS.length];
-		const start = (cursor / total) * 100;
-		cursor += amount;
-		const end = (cursor / total) * 100;
-		segments.push(`${color} ${start}% ${end}%`);
+    });
 
-		const pct = Math.round((amount / total) * 100);
-		legendItems.push(`
-			<li class="pie-legend__item">
-				<span class="pie-legend__dot" style="background:${color}"></span>
-				<span class="pie-legend__label">${platform}</span>
-				<span class="pie-legend__value">${rupeeFormatter.format(amount)} · ${pct}%</span>
-			</li>
-		`);
-	});
 
-	pieChart.style.background = `conic-gradient(${segments.join(', ')})`;
-	pieLegend.innerHTML = legendItems.join('');
+    const entries = Object.entries(byPlatform)
+        .sort((a, b) => b[1] - a[1]);
+
+
+    const total = entries.reduce(
+        (sum, entry) => sum + entry[1],
+        0
+    );
+
+
+    if (total === 0) {
+
+        pieChart.style.background =
+            "conic-gradient(rgba(124, 158, 138, 0.15) 0 100%)";
+
+        pieChart.dataset.empty = "true";
+
+        pieLegend.innerHTML =
+            '<li class="pie-legend__empty">No data to chart yet.</li>';
+
+        return;
+    }
+
+
+    pieChart.dataset.empty = "false";
+
+
+    let cursor = 0;
+
+    const segments = [];
+    const legendItems = [];
+
+
+    entries.forEach(([platform, amount], index) => {
+
+        const color =
+            PIE_COLORS[index % PIE_COLORS.length];
+
+
+        const start =
+            (cursor / total) * 100;
+
+
+        cursor += amount;
+
+
+        const end =
+            (cursor / total) * 100;
+
+
+        segments.push(
+            `${color} ${start}% ${end}%`
+        );
+
+
+        const pct =
+            Math.round((amount / total) * 100);
+
+
+        legendItems.push(`
+            <li class="pie-legend__item">
+
+                <span
+                    class="pie-legend__dot"
+                    style="background:${color}">
+                </span>
+
+                <span class="pie-legend__label">
+                    ${platform}
+                </span>
+
+                <span class="pie-legend__value">
+                    ${rupeeFormatter.format(amount)} · ${pct}%
+                </span>
+
+            </li>
+        `);
+    });
+
+
+    pieChart.style.background =
+        `conic-gradient(${segments.join(", ")})`;
+
+
+    pieLegend.innerHTML =
+        legendItems.join("");
 }
+
+
+// ===============================
+// EARNINGS GRID
+// ===============================
 
 function renderGrid(sorted) {
-	if (sorted.length === 0) {
-		earningsGrid.innerHTML = '';
-		emptyState.hidden = false;
-		return;
-	}
 
-	emptyState.hidden = true;
-	earningsGrid.innerHTML = sorted
-		.map(
-			(item) => `
-				<article class="earning-card">
-					<div class="earning-card__top">
-						<span class="earning-card__platform">${item.platform}</span>
-						<button class="earning-card__remove" type="button" data-remove="${item.id}" aria-label="Remove earning">&times;</button>
-					</div>
-					<strong class="earning-card__amount">${rupeeFormatter.format(Number(item.amount || 0))}</strong>
-					<div class="earning-card__meta">
-						<span class="earning-card__badge">${item.category}</span>
-						<span class="earning-card__date">${formatDate(item.date)}</span>
-					</div>
-				</article>
-			`
-		)
-		.join('');
+    if (sorted.length === 0) {
+
+        earningsGrid.innerHTML = "";
+
+        emptyState.hidden = false;
+
+        return;
+    }
+
+
+    emptyState.hidden = true;
+
+
+    earningsGrid.innerHTML = sorted
+        .map(item => {
+
+            return `
+                <article class="earning-card">
+
+                    <div class="earning-card__top">
+
+                        <span class="earning-card__platform">
+                            ${item.platform}
+                        </span>
+
+                        <button
+                            class="earning-card__remove"
+                            type="button"
+                            data-remove="${item.id}"
+                            aria-label="Remove earning">
+                            &times;
+                        </button>
+
+                    </div>
+
+
+                    <strong class="earning-card__amount">
+                        ${rupeeFormatter.format(
+                            Number(item.amount || 0)
+                        )}
+                    </strong>
+
+
+                    <div class="earning-card__meta">
+
+                        <span class="earning-card__badge">
+                            ${item.category}
+                        </span>
+
+                        <span class="earning-card__date">
+                            ${formatDate(item.date)}
+                        </span>
+
+                    </div>
+
+                </article>
+            `;
+
+        })
+        .join("");
 }
+
+
+// ===============================
+// MAIN RENDER
+// ===============================
 
 function render() {
-	const sorted = sortedByDate(earnings);
-	renderSummary(sorted);
-	renderPie();
-	renderGrid(sorted);
+
+    const sorted = sortedByDate(earnings);
+
+    renderSummary(sorted);
+
+    renderPie();
+
+    renderGrid(sorted);
 }
 
-earningForm.addEventListener("submit", async (event) => {
-	event.preventDefault();
 
-	const formData = new FormData(earningForm);
-	const platform = String(formData.get("platform") || "").trim();
-	const amount = Number(formData.get("amount"));
-	const date = String(formData.get("date") || "");
-	const category = String(formData.get("category") || "");
+// ===============================
+// ADD EARNING
+// ===============================
 
-	if (!platform || !date || !category || Number.isNaN(amount) || amount <= 0) {
-		alert("Please fill all earning fields correctly.");
-		return;
-	}
+if (earningForm) {
 
-	const backendResult = await saveEarningToBackend(platform, amount,date);
+    earningForm.addEventListener("submit", async event => {
 
-	if (!backendResult) {
-		return;
-	}
+        event.preventDefault();
 
-	
-	
-	earningForm.reset();
 
-	const dateInput = earningForm.querySelector('input[name="date"]');
-	if (dateInput) {
-		dateInput.value = new Date().toISOString().slice(0, 10);
-	}
+        const formData =
+            new FormData(earningForm);
 
-	await loadEarningsFromBackend();
-	if (window.loadDashboard) {
-    await window.loadDashboard();
+
+        const platform =
+            String(
+                formData.get("platform") || ""
+            ).trim();
+
+
+        const amount =
+            Number(formData.get("amount"));
+
+
+        const date =
+            String(formData.get("date") || "");
+
+
+        const category =
+            String(formData.get("category") || "");
+
+
+        if (
+            !platform ||
+            !date ||
+            !category ||
+            Number.isNaN(amount) ||
+            amount <= 0
+        ) {
+
+            alert(
+                "Please fill all earning fields correctly."
+            );
+
+            return;
+        }
+
+
+        const backendResult =
+            await saveEarningToBackend(
+                platform,
+                amount,
+                date
+            );
+
+
+        if (!backendResult) {
+            return;
+        }
+
+
+        earningForm.reset();
+
+
+        const dateInput =
+            earningForm.querySelector(
+                'input[name="date"]'
+            );
+
+
+        if (dateInput) {
+
+            dateInput.value =
+                new Date()
+                    .toISOString()
+                    .slice(0, 10);
+        }
+
+
+        await loadEarningsFromBackend();
+
+
+        if (window.loadDashboard) {
+            await window.loadDashboard();
+        }
+
+
+        if (window.loadChart) {
+            await window.loadChart();
+        }
+
+    });
+
 }
 
-if (window.loadChart) {
-    await window.loadChart();
+
+// ===============================
+// DELETE EARNING
+// ===============================
+
+if (earningsGrid) {
+
+    earningsGrid.addEventListener(
+        "click",
+        async event => {
+
+            const button =
+                event.target.closest("[data-remove]");
+
+
+            if (!button) {
+                return;
+            }
+
+
+            const id =
+                button.dataset.remove;
+
+
+            const deleted =
+                await deleteEarningFromBackend(id);
+
+
+            if (!deleted) {
+                return;
+            }
+
+
+            await loadEarningsFromBackend();
+
+
+            if (window.loadDashboard) {
+                await window.loadDashboard();
+            }
+
+
+            if (window.loadChart) {
+                await window.loadChart();
+            }
+
+        }
+    );
+
 }
-});
 
-earningsGrid.addEventListener("click", async (event) => {
 
-	const button = event.target.closest("[data-remove]");
+// ===============================
+// DEFAULT DATE
+// ===============================
 
-	if (!button) return;
+if (earningForm) {
 
-	const id = button.dataset.remove;
+    const dateInput =
+        earningForm.querySelector(
+            'input[name="date"]'
+        );
 
-	const deleted = await deleteEarningFromBackend(id);
-if (deleted) {
-    await loadEarningsFromBackend();
 
-    if (window.loadDashboard) {
-        await window.loadDashboard();
+    if (dateInput) {
+
+        dateInput.value =
+            new Date()
+                .toISOString()
+                .slice(0, 10);
     }
-
-    if (window.loadChart) {
-        await window.loadChart();
-    }
 }
-});
 
-const dateInput = earningForm.querySelector('input[name="date"]');
-if (dateInput) {
-	dateInput.value = new Date().toISOString().slice(0, 10);
-}
+
+// ===============================
+// INITIAL LOAD
+// ===============================
 
 loadEarningsFromBackend();
