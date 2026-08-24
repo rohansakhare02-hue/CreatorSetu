@@ -25,11 +25,9 @@ async function saveEarningToBackend(platform, amount, date) {
 		return null;
 	}
 }
-
 async function loadEarningsFromBackend() {
     try {
-        const response = await fetch(`${API_BASE_URL}/earnings`);
-
+        const response = await apiFetch("/api/earnings");
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -47,12 +45,31 @@ async function loadEarningsFromBackend() {
         }));
 
         render();
-
     } catch (error) {
         console.error("Failed to load earnings:", error);
     }
 }
 
+
+async function deleteEarningFromBackend(id) {
+    try {
+        const response = await apiFetch(`/api/earnings/${id}`, {
+            method: "DELETE"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Delete failed");
+        }
+
+        return true;
+    } catch (error) {
+        console.error(error);
+        alert("Failed to delete earning.");
+        return false;
+    }
+}
 
 
 async function deleteEarningFromBackend(id) {
