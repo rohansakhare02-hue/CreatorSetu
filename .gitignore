@@ -1,0 +1,10 @@
+node_modules/
+postman/
+.env
+.env.*
+!.env.example
+firebase-key.json
+.agents/
+.claude/
+.windsurf/
+*.log

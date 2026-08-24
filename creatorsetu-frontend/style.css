@@ -2225,3 +2225,121 @@ body.is-signup .auth-card__copy {
 .dashboard__links button {
     padding: 0;
 }
+/* =========================
+   SCRIPT GENERATOR MODAL
+========================= */
+
+.script-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+
+    background: rgba(25, 35, 30, 0.45);
+    backdrop-filter: blur(8px);
+}
+
+.script-modal.is-open {
+    display: flex;
+}
+
+.script-modal-card {
+    position: relative;
+
+    width: min(720px, 100%);
+    max-height: 85vh;
+
+    padding: 36px;
+
+    background: #ffffff;
+    border: 1px solid rgba(126, 164, 145, 0.2);
+    border-radius: 28px;
+
+    box-shadow: 0 30px 80px rgba(40, 60, 50, 0.2);
+
+    overflow-y: auto;
+}
+
+.script-modal-card .eyebrow {
+    margin-bottom: 10px;
+    color: #7fa58f;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.script-modal-card h2 {
+    margin: 0 40px 24px 0;
+    font-size: 28px;
+    line-height: 1.25;
+    color: #292929;
+}
+
+.script-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+
+    width: 40px;
+    height: 40px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: #f1f4f1;
+    color: #333;
+
+    font-size: 25px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.script-modal-close:hover {
+    background: #e4ebe6;
+}
+
+.generated-script {
+    padding: 24px;
+
+    background: #f6f8f6;
+    border: 1px solid #e5ebe7;
+    border-radius: 18px;
+
+    color: #444;
+    font-size: 15px;
+    line-height: 1.8;
+
+    white-space: pre-wrap;
+}
+
+.script-modal-card .primary-button {
+    margin-top: 20px;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .script-modal {
+        padding: 14px;
+    }
+
+    .script-modal-card {
+        padding: 26px 20px;
+        border-radius: 22px;
+    }
+
+    .script-modal-card h2 {
+        font-size: 23px;
+    }
+
+    .generated-script {
+        padding: 18px;
+        font-size: 14px;
+    }
+}

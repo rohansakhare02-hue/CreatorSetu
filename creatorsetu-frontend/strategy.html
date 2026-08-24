@@ -12,6 +12,20 @@
 </head>
 <script type="module" src="checkAuth.js"></script>
 <body>
+	<div id="scriptModal" class="script-modal">
+    <div class="script-modal-card">
+        <button id="closeScriptModal" class="script-modal-close">×</button>
+
+        <p class="eyebrow">AI SCRIPT GENERATOR</p>
+        <h2 id="scriptModalTitle">Your Script</h2>
+
+        <div id="generatedScript" class="generated-script"></div>
+
+        <button id="copyScriptBtn" class="primary-button">
+            Copy Script
+        </button>
+    </div>
+</div>
 	<main class="page">
 		<header class="page__nav">
 			<div class="page__brand">
@@ -50,17 +64,33 @@
 							<option>Behance</option>
 						</select>
 					</label>
-					<label class="field">
-						<span>Content type</span>
-						<select name="contentType" data-strategy-input>
-							<option>Reels & Shorts</option>
-							<option>Long-form video</option>
-							<option>Carousels</option>
-							<option>Photos</option>
-							<option>Blogs & Articles</option>
-							<option>Live streams</option>
-						</select>
-					</label>
+				<label class="field">
+    <span>Your niche</span>
+    <select name="niche" data-strategy-input>
+        <option>Technology</option>
+        <option>Education</option>
+        <option>Fitness</option>
+        <option>Fashion</option>
+        <option>Finance</option>
+        <option>Gaming</option>
+        <option>Travel</option>
+        <option>Food</option>
+        <option>Lifestyle</option>
+        <option>Business</option>
+        <option>Other</option>
+    </select>
+</label>
+
+<label class="field">
+    <span>Primary goal</span>
+    <select name="goal" data-strategy-input>
+        <option>Grow followers</option>
+        <option>Increase engagement</option>
+        <option>Earn more money</option>
+        <option>Get brand deals</option>
+        <option>Build personal brand</option>
+    </select>
+</label>
 					<div class="field posts-per-week-field">
 						<div class="ppw-header">
 							<span class="ppw-label">Posts per week</span>
@@ -117,6 +147,7 @@
 		</footer>
 	</main>
 
-	<script src="strategy.js"></script>
+	<script src="api.js"></script>
+<script src="strategy.js"></script>
 </body>
 </html>

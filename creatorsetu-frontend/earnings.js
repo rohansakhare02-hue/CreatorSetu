@@ -1,25 +1,23 @@
-const API_BASE_URL = "http://localhost:5000/api";
 
-async function saveEarningToBackend(platform, amount,date) {
-	try {
-		const response = await fetch(`${API_BASE_URL}/earnings`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json"
-			},
-			body: JSON.stringify({
-				platform,
-				amount,   
-				date
-			})
-		});
+async function saveEarningToBackend(platform, amount, date) {
+    try {
+        const response = await apiFetch("/api/earnings", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                platform,
+                amount,
+                date: new Date(date).toISOString()
+            })
+        });
 
-		const data = await response.json();
+        const data = await response.json();
 
-		if (!response.ok || !data.success) {
-			throw new Error(data.error || "Failed to save earning");
-		}
-
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Failed to save earning");
+        }
 		return data;
 	} catch (error) {
 		console.error("Backend save failed:", error);
@@ -29,29 +27,30 @@ async function saveEarningToBackend(platform, amount,date) {
 }
 
 async function loadEarningsFromBackend() {
-	try {
-		const response = await fetch(`${API_BASE_URL}/earnings`);
-		const data = await response.json();
+    try {
+        const response = await fetch(`${API_BASE_URL}/earnings`);
 
-		if (!data.success) {
-			throw new Error("Failed to load earnings");
-		}
+        const data = await response.json();
 
-		earnings = data.earnings.map(item => ({
-			id: item.id,
-			platform: item.platform,
-			amount: item.amount,
-			date: item.createdAt
-				? new Date(item.createdAt._seconds * 1000).toISOString().slice(0, 10)
-				: new Date().toISOString().slice(0, 10),
-			category: "Other"
-		}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Failed to load earnings");
+        }
 
-		render();
+        earnings = data.earnings.map(item => ({
+            id: item.id,
+            platform: item.platform,
+            amount: Number(item.amount),
+            date: item.date
+                ? new Date(item.date).toISOString().slice(0, 10)
+                : new Date().toISOString().slice(0, 10),
+            category: "Other"
+        }));
 
-	} catch (error) {
-		console.error("Failed to load earnings:", error);
-	}
+        render();
+
+    } catch (error) {
+        console.error("Failed to load earnings:", error);
+    }
 }
 
 
@@ -265,6 +264,13 @@ earningForm.addEventListener("submit", async (event) => {
 	}
 
 	await loadEarningsFromBackend();
+	if (window.loadDashboard) {
+    await window.loadDashboard();
+}
+
+if (window.loadChart) {
+    await window.loadChart();
+}
 });
 
 earningsGrid.addEventListener("click", async (event) => {
@@ -276,11 +282,17 @@ earningsGrid.addEventListener("click", async (event) => {
 	const id = button.dataset.remove;
 
 	const deleted = await deleteEarningFromBackend(id);
+if (deleted) {
+    await loadEarningsFromBackend();
 
-	if (deleted) {
-		await loadEarningsFromBackend();
-	}
+    if (window.loadDashboard) {
+        await window.loadDashboard();
+    }
 
+    if (window.loadChart) {
+        await window.loadChart();
+    }
+}
 });
 
 const dateInput = earningForm.querySelector('input[name="date"]');

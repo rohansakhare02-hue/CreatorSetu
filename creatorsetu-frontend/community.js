@@ -83,27 +83,50 @@ function renderCreators(query = '') {
 }
 
 function renderCollabs() {
-	collabGrid.innerHTML = collabs
-		.map(
-			(item, index) => `
-				<article class="collab-card collab-card--tone-${index % 4}">
-					<div class="collab-card__top">
-						<span class="collab-card__avatar">${initials(item.name)}</span>
-						<div>
-							<span class="collab-card__name">${item.name}</span>
-							<span class="collab-card__platform">${item.platform}</span>
-						</div>
-					</div>
-					<p class="collab-card__text">${item.text}</p>
-					<div class="collab-card__foot">
-						<span class="collab-card__tag">${item.tag}</span>
-						<button class="ghost-button" type="button">Join collab</button>
-					</div>
-				</article>
-			`
-		)
-		.join('');
+    collabGrid.innerHTML = collabs
+        .map(
+            (item, index) => `
+                <article class="collab-card collab-card--tone-${index % 4}">
+                    <div class="collab-card__top">
+                        <span class="collab-card__avatar">
+                            ${initials(item.name)}
+                        </span>
+
+                        <div>
+                            <span class="collab-card__name">${item.name}</span>
+                            <span class="collab-card__platform">${item.platform}</span>
+                        </div>
+                    </div>
+
+                    <p class="collab-card__text">${item.text}</p>
+
+                    <div class="collab-card__foot">
+                        <span class="collab-card__tag">${item.tag}</span>
+
+                        <button
+                            class="ghost-button"
+                            type="button"
+                            data-join-collab
+                        >
+                            Join collab
+                        </button>
+                    </div>
+                </article>
+            `
+        )
+        .join('');
 }
+collabGrid.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-join-collab]');
+
+    if (!button) {
+        return;
+    }
+
+    button.textContent = 'Joined ✓';
+    button.classList.add('is-joined');
+    button.disabled = true;
+});
 
 function renderTrending() {
 	trendingList.innerHTML = trending

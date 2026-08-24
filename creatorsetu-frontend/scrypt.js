@@ -29,68 +29,227 @@ function shortRupee(value) {
 }
 
 function buildEarningsChart(data) {
-	const width = 620;
-	const height = 320;
-	const margin = { top: 34, right: 24, bottom: 44, left: 56 };
-	const plotWidth = width - margin.left - margin.right;
-	const plotHeight = height - margin.top - margin.bottom;
+    const width = 620;
+    const height = 320;
 
-	const maxValue = Math.max(...data.map((item) => item.value));
-	const tickCount = 4;
-	const step = Math.ceil(maxValue / tickCount / 10000) * 10000;
-	const maxY = step * tickCount;
-	const slotWidth = plotWidth / data.length;
-	const barWidth = slotWidth * 0.46;
-	const yFor = (value) => margin.top + plotHeight - (value / maxY) * plotHeight;
-	const xCenter = (index) => margin.left + slotWidth * (index + 0.5);
+    const margin = {
+        top: 34,
+        right: 24,
+        bottom: 44,
+        left: 56
+    };
 
-	const gridLines = [];
-	const axisLabels = [];
-	for (let tick = 0; tick <= tickCount; tick += 1) {
-		const value = step * tick;
-		const y = yFor(value);
-		gridLines.push(
-			`<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" class="earnings-chart__grid" />`
-		);
-		axisLabels.push(
-			`<text x="${margin.left - 12}" y="${y + 4}" class="earnings-chart__axis">${shortRupee(value)}</text>`
-		);
-	}
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
 
-	const bars = data
-		.map((item, index) => {
-			const x = xCenter(index) - barWidth / 2;
-			const y = yFor(item.value);
-			const barHeight = margin.top + plotHeight - y;
-			return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="10" class="earnings-chart__bar" />`;
-		})
-		.join('');
+    // Make sure data is valid
+    const safeData = Array.isArray(data)
+        ? data
+            .map(item => ({
+                month: item.month || "",
+                value: Number(item.value) || 0
+            }))
+            .filter(item => Number.isFinite(item.value))
+        : [];
 
-	const linePoints = data.map((item, index) => `${xCenter(index)},${yFor(item.value)}`).join(' ');
-	const areaPoints = `${margin.left},${margin.top + plotHeight} ${linePoints} ${width - margin.right},${margin.top + plotHeight}`;
+    // No data
+    if (safeData.length === 0) {
+        return `
+            <svg
+                class="earnings-chart"
+                viewBox="0 0 ${width} ${height}"
+                role="img"
+                aria-label="Monthly earnings chart"
+                preserveAspectRatio="xMidYMid meet"
+            >
+                <text
+                    x="${width / 2}"
+                    y="${height / 2}"
+                    text-anchor="middle"
+                    class="earnings-chart__axis"
+                >
+                    No earnings data yet
+                </text>
+            </svg>
+        `;
+    }
 
-	const markers = data
-		.map((item, index) => {
-			const cx = xCenter(index);
-			const cy = yFor(item.value);
-			return `
-				<circle cx="${cx}" cy="${cy}" r="5" class="earnings-chart__dot" />
-				<text x="${cx}" y="${cy - 14}" class="earnings-chart__value">${shortRupee(item.value)}</text>
-				<text x="${cx}" y="${height - margin.bottom + 24}" class="earnings-chart__label">${item.month}</text>
-			`;
-		})
-		.join('');
+    // Find maximum safely
+    const maxValue = Math.max(
+        ...safeData.map(item => item.value),
+        0
+    );
 
-	return `
-		<svg class="earnings-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly earnings chart" preserveAspectRatio="xMidYMid meet">
-			${gridLines.join('')}
-			${axisLabels.join('')}
-			<polygon points="${areaPoints}" class="earnings-chart__area" />
-			${bars}
-			<polyline points="${linePoints}" class="earnings-chart__line" />
-			${markers}
-		</svg>
-	`;
+    // Prevent division by zero
+    const safeMaxValue = maxValue > 0 ? maxValue : 1000;
+
+    const tickCount = 4;
+
+    // Calculate a safe Y-axis step
+    const rawStep = safeMaxValue / tickCount;
+
+    const step =
+        rawStep > 10000
+            ? Math.ceil(rawStep / 10000) * 10000
+            : rawStep > 1000
+                ? Math.ceil(rawStep / 1000) * 1000
+                : Math.ceil(rawStep / 100) * 100;
+
+    const maxY = Math.max(step * tickCount, 1000);
+
+    const slotWidth = plotWidth / safeData.length;
+    const barWidth = Math.min(slotWidth * 0.46, 60);
+
+    const yFor = (value) => {
+        const safeValue = Number(value) || 0;
+
+        return (
+            margin.top +
+            plotHeight -
+            (safeValue / maxY) * plotHeight
+        );
+    };
+
+    const xCenter = (index) =>
+        margin.left + slotWidth * (index + 0.5);
+
+    // ---------------- GRID LINES ----------------
+
+    const gridLines = [];
+    const axisLabels = [];
+
+    for (let tick = 0; tick <= tickCount; tick++) {
+        const value = step * tick;
+        const y = yFor(value);
+
+        gridLines.push(`
+            <line
+                x1="${margin.left}"
+                y1="${y}"
+                x2="${width - margin.right}"
+                y2="${y}"
+                class="earnings-chart__grid"
+            />
+        `);
+
+        axisLabels.push(`
+            <text
+                x="${margin.left - 12}"
+                y="${y + 4}"
+                text-anchor="end"
+                class="earnings-chart__axis"
+            >
+                ${shortRupee(value)}
+            </text>
+        `);
+    }
+
+    // ---------------- BARS ----------------
+
+    const bars = safeData
+        .map((item, index) => {
+            const x = xCenter(index) - barWidth / 2;
+            const y = yFor(item.value);
+
+            const barHeight =
+                margin.top + plotHeight - y;
+
+            return `
+                <rect
+                    x="${x}"
+                    y="${y}"
+                    width="${barWidth}"
+                    height="${Math.max(barHeight, 0)}"
+                    rx="10"
+                    class="earnings-chart__bar"
+                />
+            `;
+        })
+        .join("");
+
+    // ---------------- LINE ----------------
+
+    const linePoints = safeData
+        .map((item, index) => {
+            return `${xCenter(index)},${yFor(item.value)}`;
+        })
+        .join(" ");
+
+    // ---------------- AREA ----------------
+
+    const areaPoints = `
+        ${margin.left},${margin.top + plotHeight}
+        ${linePoints}
+        ${width - margin.right},${margin.top + plotHeight}
+    `;
+
+    // ---------------- MARKERS ----------------
+
+    const markers = safeData
+        .map((item, index) => {
+            const cx = xCenter(index);
+            const cy = yFor(item.value);
+
+            return `
+                <circle
+                    cx="${cx}"
+                    cy="${cy}"
+                    r="5"
+                    class="earnings-chart__dot"
+                />
+
+                <text
+                    x="${cx}"
+                    y="${cy - 14}"
+                    text-anchor="middle"
+                    class="earnings-chart__value"
+                >
+                    ${shortRupee(item.value)}
+                </text>
+
+                <text
+                    x="${cx}"
+                    y="${height - margin.bottom + 24}"
+                    text-anchor="middle"
+                    class="earnings-chart__label"
+                >
+                    ${item.month}
+                </text>
+            `;
+        })
+        .join("");
+
+    // ---------------- FINAL SVG ----------------
+
+    return `
+        <svg
+            class="earnings-chart"
+            viewBox="0 0 ${width} ${height}"
+            role="img"
+            aria-label="Monthly earnings chart"
+            preserveAspectRatio="xMidYMid meet"
+        >
+
+            ${gridLines.join("")}
+
+            ${axisLabels.join("")}
+
+            <polygon
+                points="${areaPoints}"
+                class="earnings-chart__area"
+            />
+
+            ${bars}
+
+            <polyline
+                points="${linePoints}"
+                class="earnings-chart__line"
+            />
+
+            ${markers}
+
+        </svg>
+    `;
 }
 
 function setMode(mode) {
@@ -221,15 +380,17 @@ function showPostLogin(form) {
 
 window.showDashboard = function(form){
     showPostLogin(form);
-	 loadDashboard();   // Dashboard cards
-    loadChart(); 
+	 loadDashboard(); 
+	     loadChart();  // Dashboard cards
+
 }
 
 setMode('login');
 renderDashboard();
-async function loadDashboard() {
+async function loadDashboard()
+ {
 
-    const response = await fetch("http://localhost:5000/api/dashboard");
+    const response = await fetch("/api/dashboard");
     const data = await response.json();
 
     if (!data.success) return;
@@ -246,17 +407,69 @@ async function loadDashboard() {
     document.getElementById("topPlatformAmount").textContent =
         "₹" + data.topPlatformAmount;
 }
-loadDashboard();
 async function loadChart() {
+    try {
+        const response = await fetch("/api/chart");
 
-    const response = await fetch("http://localhost:5000/api/chart");
-    const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`Chart API error: ${response.status}`);
+        }
 
-    if (!data.success) return;
+        const data = await response.json();
 
-    earningsData = data.chart;
+        if (!data.success) {
+            throw new Error(data.error || "Chart data failed");
+        }
 
-    renderDashboard();
+        earningsData = data.chart || [];
+
+        renderDashboard();
+
+    } catch (error) {
+        console.error("Failed to load chart:", error);
+    }
 }
+loadDashboard();
+async function loadChart()
+ {
+    try {
+        const response = await fetch("/api/chart");
+
+        if (!response.ok) {
+            throw new Error(`Chart API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !Array.isArray(data.chart)) {
+            console.error("Invalid chart data:", data);
+            earningsData = [];
+            renderDashboard();
+            return;
+        }
+
+        // Remove invalid chart values
+        earningsData = data.chart
+            .map(item => ({
+                month: item.month,
+                value: Number(item.value)
+            }))
+            .filter(item =>
+                item.month &&
+                Number.isFinite(item.value)
+            );
+
+        console.log("Chart data loaded:", earningsData);
+
+        renderDashboard();
+
+    } catch (error) {
+        console.error("Failed to load chart:", error);
+
+        earningsData = [];
+        renderDashboard();
+    }
+}
+
 window.loadDashboard = loadDashboard;
 window.loadChart = loadChart;
