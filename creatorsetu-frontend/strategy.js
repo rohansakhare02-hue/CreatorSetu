@@ -352,7 +352,7 @@ if (strategyForm) {
             try {
 
                 const response =
-                    await fetch(
+                    await apiFetch(
                          "/api/strategy/generate", 
                         {
                             method: "POST",
@@ -530,7 +530,7 @@ document.addEventListener(
         try {
 
             const response =
-                await fetch(
+                await apiFetch(
                     "/api/strategy/script",
                     
                     {
